@@ -1,7 +1,8 @@
 // server/src/services/business/notificationService.js
 
 import smsService from '../external/twilio/smsService.js';
-import firestoreService from '../external/firebase/firestore.js';
+// import firestoreService from '../external/firebase/firestore.js';
+import firebaseConfig, { db, auth } from '../../config/firebase.js';
 import { 
   getNotificationTemplate, 
   shouldSendNotification 
@@ -218,7 +219,7 @@ class NotificationService {
 
       // Update notification status in project
       if (smsResult.success) {
-        await firestoreService.updateNotificationStatus(
+        await firebaseConfig.updateNotificationStatus(
           projectData.id,
           category,
           stage,
@@ -277,7 +278,7 @@ class NotificationService {
    */
   async logNotificationAttempt(logData) {
     try {
-      await firestoreService.logNotification(logData);
+      await firebaseConfig.logNotification(logData);
     } catch (error) {
       console.error('❌ Error logging notification:', error);
       // Don't throw here as it's just logging
@@ -344,7 +345,7 @@ class NotificationService {
    */
   async storeFeedbackToken(projectId, token) {
     try {
-      await firestoreService.db.collection('feedback_tokens').add({
+      await firebaseConfig.db.collection('feedback_tokens').add({
         project_id: projectId,
         token,
         used: false,

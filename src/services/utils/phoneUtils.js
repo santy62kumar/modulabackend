@@ -37,9 +37,9 @@ function getPhoneFormats(phone) {
   return [
     normalized,                                           // 6205281574
     `+91 ${normalized.slice(0, 5)} ${normalized.slice(5)}`, // +91 62052 81574
-    `+91${normalized}`,                                   // +916205281574
-    `91${normalized}`,                                    // 916205281574
-    `0${normalized}`                                      // 06205281574
+    // `+91${normalized}`,                                   // +916205281574
+    // `91${normalized}`,                                    // 916205281574
+    // `0${normalized}`                                      // 06205281574
   ];
 }
 
@@ -117,7 +117,7 @@ function arePhoneNumbersEqual(phone1, phone2) {
 }
 
 export {
-  normalizePhone,
+  normalizePhone, 
   getPhoneFormats,
   isValidPhone,
   formatPhoneForDisplay,

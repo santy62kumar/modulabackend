@@ -29,7 +29,7 @@ class OdooPoller {
     console.log('🚀 Starting Odoo Poller Cron Job (every 5 minutes)');
     
     // Run every 5 minutes: 0 */5 * * * *
-    this.cronJob = cron.schedule('*/300 * * * *', async () => {
+    this.cronJob = cron.schedule('*/2 * * * *', async () => {
       await this.executePoll();
     }, {
       scheduled: true,

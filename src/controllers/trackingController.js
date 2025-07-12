@@ -140,201 +140,201 @@ class TrackingController {
    * @param {Request} req - Express request
    * @param {Response} res - Express response
    */
-  async getTrackingStats(req, res) {
-    try {
-      // TODO: Add admin role check middleware
+  // async getTrackingStats(req, res) {
+  //   try {
+  //     // TODO: Add admin role check middleware
       
-      const stats = await trackingService.getProcessingStats();
-      const cronStatus = cronJobsManager.getStatus();
+  //     const stats = await trackingService.getProcessingStats();
+  //     const cronStatus = cronJobsManager.getStatus();
       
-      const response = {
-        success: true,
-        data: {
-          project_stats: stats,
-          cron_status: cronStatus,
-          system_health: cronJobsManager.getHealthCheck()
-        }
-      };
+  //     const response = {
+  //       success: true,
+  //       data: {
+  //         project_stats: stats,
+  //         cron_status: cronStatus,
+  //         system_health: cronJobsManager.getHealthCheck()
+  //       }
+  //     };
 
-      res.json(response);
+  //     res.json(response);
       
-    } catch (error) {
-      console.error('❌ Error getting tracking stats:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to get tracking statistics',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  }
+  //   } catch (error) {
+  //     console.error('❌ Error getting tracking stats:', error);
+  //     res.status(500).json({
+  //       success: false,
+  //       message: 'Failed to get tracking statistics',
+  //       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  //     });
+  //   }
+  // }
 
-  /**
-   * Manually trigger Odoo poll (Admin only)
-   * @param {Request} req - Express request
-   * @param {Response} res - Express response
-   */
-  async triggerManualPoll(req, res) {
-    try {
-      // TODO: Add admin role check middleware
+  // /**
+  //  * Manually trigger Odoo poll (Admin only)
+  //  * @param {Request} req - Express request
+  //  * @param {Response} res - Express response
+  //  */
+  // async triggerManualPoll(req, res) {
+  //   try {
+  //     // TODO: Add admin role check middleware
       
-      console.log('🔧 Manual poll triggered by admin');
+  //     console.log('🔧 Manual poll triggered by admin');
       
-      const result = await cronJobsManager.runJobManually('odooPoller');
+  //     const result = await cronJobsManager.runJobManually('odooPoller');
       
-      res.json({
-        success: true,
-        message: 'Manual poll completed',
-        data: result
-      });
+  //     res.json({
+  //       success: true,
+  //       message: 'Manual poll completed',
+  //       data: result
+  //     });
       
-    } catch (error) {
-      console.error('❌ Error triggering manual poll:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to trigger manual poll',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  }
+  //   } catch (error) {
+  //     console.error('❌ Error triggering manual poll:', error);
+  //     res.status(500).json({
+  //       success: false,
+  //       message: 'Failed to trigger manual poll',
+  //       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  //     });
+  //   }
+  // }
 
-  /**
-   * Restart cron jobs (Admin only)
-   * @param {Request} req - Express request
-   * @param {Response} res - Express response
-   */
-  async restartCronJobs(req, res) {
-    try {
-      // TODO: Add admin role check middleware
+  // /**
+  //  * Restart cron jobs (Admin only)
+  //  * @param {Request} req - Express request
+  //  * @param {Response} res - Express response
+  //  */
+  // async restartCronJobs(req, res) {
+  //   try {
+  //     // TODO: Add admin role check middleware
       
-      const { jobName } = req.body;
+  //     const { jobName } = req.body;
       
-      if (jobName) {
-        cronJobsManager.restartJob(jobName);
-        res.json({
-          success: true,
-          message: `Job ${jobName} restarted successfully`
-        });
-      } else {
-        cronJobsManager.stopAll();
-        setTimeout(() => {
-          cronJobsManager.startAll();
-        }, 2000);
+  //     if (jobName) {
+  //       cronJobsManager.restartJob(jobName);
+  //       res.json({
+  //         success: true,
+  //         message: `Job ${jobName} restarted successfully`
+  //       });
+  //     } else {
+  //       cronJobsManager.stopAll();
+  //       setTimeout(() => {
+  //         cronJobsManager.startAll();
+  //       }, 2000);
         
-        res.json({
-          success: true,
-          message: 'All cron jobs restarted successfully'
-        });
-      }
+  //       res.json({
+  //         success: true,
+  //         message: 'All cron jobs restarted successfully'
+  //       });
+  //     }
       
-    } catch (error) {
-      console.error('❌ Error restarting cron jobs:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to restart cron jobs',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  }
+  //   } catch (error) {
+  //     console.error('❌ Error restarting cron jobs:', error);
+  //     res.status(500).json({
+  //       success: false,
+  //       message: 'Failed to restart cron jobs',
+  //       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  //     });
+  //   }
+  // }
 
-  /**
-   * Check Odoo connection health
-   * @param {Request} req - Express request
-   * @param {Response} res - Express response
-   */
-  async checkOdooHealth(req, res) {
-    try {
-      // TODO: Add admin role check middleware
+  // /**
+  //  * Check Odoo connection health
+  //  * @param {Request} req - Express request
+  //  * @param {Response} res - Express response
+  //  */
+  // async checkOdooHealth(req, res) {
+  //   try {
+  //     // TODO: Add admin role check middleware
       
-      const isHealthy = await odooClient.checkConnection();
+  //     const isHealthy = await odooClient.checkConnection();
       
-      res.json({
-        success: true,
-        data: {
-          odoo_connected: isHealthy,
-          timestamp: new Date().toISOString()
-        }
-      });
+  //     res.json({
+  //       success: true,
+  //       data: {
+  //         odoo_connected: isHealthy,
+  //         timestamp: new Date().toISOString()
+  //       }
+  //     });
       
-    } catch (error) {
-      console.error('❌ Error checking Odoo health:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to check Odoo connection',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  }
+  //   } catch (error) {
+  //     console.error('❌ Error checking Odoo health:', error);
+  //     res.status(500).json({
+  //       success: false,
+  //       message: 'Failed to check Odoo connection',
+  //       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  //     });
+  //   }
+  // }
 
-  /**
-   * Get system health status
-   * @param {Request} req - Express request
-   * @param {Response} res - Express response
-   */
-  async getSystemHealth(req, res) {
-    try {
-      const healthCheck = cronJobsManager.getHealthCheck();
-      const odooHealth = await odooClient.checkConnection();
+  // /**
+  //  * Get system health status
+  //  * @param {Request} req - Express request
+  //  * @param {Response} res - Express response
+  //  */
+  // async getSystemHealth(req, res) {
+  //   try {
+  //     const healthCheck = cronJobsManager.getHealthCheck();
+  //     const odooHealth = await odooClient.checkConnection();
       
-      const overallHealth = healthCheck.overall === 'healthy' && odooHealth;
+  //     const overallHealth = healthCheck.overall === 'healthy' && odooHealth;
       
-      res.json({
-        success: true,
-        data: {
-          overall_health: overallHealth ? 'healthy' : 'unhealthy',
-          cron_jobs: healthCheck,
-          odoo_connection: odooHealth,
-          timestamp: new Date().toISOString()
-        }
-      });
+  //     res.json({
+  //       success: true,
+  //       data: {
+  //         overall_health: overallHealth ? 'healthy' : 'unhealthy',
+  //         cron_jobs: healthCheck,
+  //         odoo_connection: odooHealth,
+  //         timestamp: new Date().toISOString()
+  //       }
+  //     });
       
-    } catch (error) {
-      console.error('❌ Error getting system health:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to get system health',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  }
+  //   } catch (error) {
+  //     console.error('❌ Error getting system health:', error);
+  //     res.status(500).json({
+  //       success: false,
+  //       message: 'Failed to get system health',
+  //       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  //     });
+  //   }
+  // }
 
-  /**
-   * Test customer phone lookup in Odoo
-   * @param {Request} req - Express request  
-   * @param {Response} res - Express response
-   */
-  async testPhoneLookup(req, res) {
-    try {
-      // TODO: Add admin role check middleware
+  // /**
+  //  * Test customer phone lookup in Odoo
+  //  * @param {Request} req - Express request  
+  //  * @param {Response} res - Express response
+  //  */
+  // async testPhoneLookup(req, res) {
+  //   try {
+  //     // TODO: Add admin role check middleware
       
-      const { phone } = req.query;
+  //     const { phone } = req.query;
       
-      if (!phone) {
-        return res.status(400).json({
-          success: false,
-          message: 'Phone parameter required'
-        });
-      }
+  //     if (!phone) {
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: 'Phone parameter required'
+  //       });
+  //     }
 
-      const leads = await odooClient.fetchLeadByPhone(phone);
+  //     const leads = await odooClient.fetchLeadByPhone(phone);
       
-      res.json({
-        success: true,
-        data: {
-          phone: phone,
-          leads_found: leads.length,
-          leads: leads
-        }
-      });
+  //     res.json({
+  //       success: true,
+  //       data: {
+  //         phone: phone,
+  //         leads_found: leads.length,
+  //         leads: leads
+  //       }
+  //     });
       
-    } catch (error) {
-      console.error('❌ Error testing phone lookup:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to test phone lookup',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  }
+  //   } catch (error) {
+  //     console.error('❌ Error testing phone lookup:', error);
+  //     res.status(500).json({
+  //       success: false,
+  //       message: 'Failed to test phone lookup',
+  //       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  //     });
+  //   }
+  // }
 }
 
 // Create singleton instance

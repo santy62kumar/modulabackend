@@ -2,6 +2,9 @@
 import twilio from 'twilio';
 import { formatPhoneForSMS } from '../../utils/phoneUtils.js';
 import { processTemplate } from '../../../constants/notificationTemplates.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 
 /**
