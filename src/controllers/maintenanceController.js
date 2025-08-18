@@ -1,423 +1,479 @@
 // server/src/controllers/maintenanceController.js
-import MaintenanceService from '../services/business/maintenanceService.js';
+import { v4 as uuidv4 } from 'uuid';
+import firebaseConfig from '../config/firebase.js';
+import { normalizePhone } from '../services/utils/phoneUtils.js';
 
 class MaintenanceController {
-  constructor() {
-    this.maintenanceService = new MaintenanceService();
-  }
-
-  async submitMaintenanceRequest(req, res) {
+  /**
+   * Submit a new service request
+   * POST /api/maintenance/request
+   */
+  async submitServiceRequest(req, res) {
     try {
-      const { userId, leadId } = req.user; // From auth middleware
-      const requestData = req.body;
+      const {
+        projectId,
+        category,
+        serviceId,
+        serviceName,
+        description,
+        contactName,
+        contactPhone,
+        preferredDate,
+        urgency = 'normal'
+      } = req.body;
 
-      const result = await this.maintenanceService.submitMaintenanceRequest(userId, leadId, requestData);
+      // Validate required fields
+      if (!projectId || !category || !serviceId || !serviceName || !description || !contactName || !contactPhone) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required fields'
+        });
+      }
+
+      // Validate category
+      const validCategories = ['services', 'upgrade', 'support'];
+      if (!validCategories.includes(category)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid service category'
+        });
+      }
+
+      // Validate urgency
+      const validUrgencies = ['low', 'normal', 'high', 'urgent'];
+      if (!validUrgencies.includes(urgency)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid urgency level'
+        });
+      }
+
+      // Get user info from token (assuming auth middleware sets req.user)
+      const userPhone = req.user?.phone || normalizePhone(contactPhone);
+
+      // Generate unique request ID
+      const requestId = uuidv4();
+
+      // Create service request data
+      const serviceRequestData = {
+        id: requestId,
+        project_id: projectId,
+        customer_phone: userPhone,
+        category,
+        service_id: serviceId,
+        service_name: serviceName,
+        description,
+        contact_name: contactName,
+        contact_phone: normalizePhone(contactPhone),
+        preferred_date: preferredDate || null,
+        urgency,
+        status: 'pending',
+        created_at: firebaseConfig.getServerTimestamp(),
+        updated_at: firebaseConfig.getServerTimestamp(),
+        status_updated_at: firebaseConfig.getServerTimestamp()
+      };
+
+      // Save to Firebase
+      await firebaseConfig.db
+        .collection('service_requests')
+        .doc(requestId)
+        .set(serviceRequestData);
+
+      console.log(`✅ Service request created: ${requestId} for category: ${category}`);
 
       res.status(201).json({
         success: true,
-        message: result.message,
+        message: 'Service request submitted successfully',
         data: {
-          referenceId: result.request.referenceId,
-          submittedAt: result.request.submittedAt,
-          status: result.request.status
+          requestId,
+          status: 'pending',
+          category,
+          serviceName
         }
       });
+
     } catch (error) {
-      console.error('Error in submitMaintenanceRequest controller:', error);
-      
-      if (error.message.includes('Validation failed')) {
+      console.error('❌ Error submitting service request:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to submit service request',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Get service requests for a specific project
+   * GET /api/maintenance/requests/:projectId
+   */
+  async getServiceRequestsByProject(req, res) {
+    try {
+      const { projectId } = req.params;
+      const userPhone = req.user?.phone;
+
+      if (!projectId) {
         return res.status(400).json({
           success: false,
-          message: error.message
+          message: 'Project ID is required'
         });
       }
 
-      res.status(500).json({
-        success: false,
-        message: 'Failed to submit maintenance request. Please try again.'
+      // Query service requests for the project and user
+      const snapshot = await firebaseConfig.db
+        .collection('service_requests')
+        .where('project_id', '==', projectId)
+        .where('customer_phone', '==', userPhone)
+        .orderBy('created_at', 'desc')
+        .get();
+
+      const requests = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        requests.push({
+          id: doc.id,
+          ...data,
+          created_at: data.created_at?.toDate?.() || data.created_at,
+          updated_at: data.updated_at?.toDate?.() || data.updated_at,
+          status_updated_at: data.status_updated_at?.toDate?.() || data.status_updated_at
+        });
       });
-    }
-  }
 
-  async getUserMaintenanceRequests(req, res) {
-    try {
-      const { userId } = req.user; // From auth middleware
-
-      const result = await this.maintenanceService.getMaintenanceRequestsByUser(userId);
-
-      res.status(200).json({
+      res.json({
         success: true,
         data: {
-          request: result.request
+          requests,
+          total: requests.length,
+          projectId
         }
       });
-    } catch (error) {
-      console.error('Error in getMaintenanceRequestByReference controller:', error);
-      
-      if (error.message.includes('not found')) {
-        return res.status(404).json({
-          success: false,
-          message: error.message
-        });
-      }
 
+    } catch (error) {
+      console.error('❌ Error fetching service requests:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to retrieve maintenance request'
+        message: 'Failed to fetch service requests',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }
 
-  async updateRequestStatus(req, res) {
+  /**
+   * Get all service requests for a customer
+   * GET /api/maintenance/requests
+   */
+  async getCustomerServiceRequests(req, res) {
+    try {
+      const userPhone = req.user?.phone;
+
+      if (!userPhone) {
+        return res.status(400).json({
+          success: false,
+          message: 'User phone number not found'
+        });
+      }
+
+      // Query all service requests for the customer
+      const snapshot = await firebaseConfig.db
+        .collection('service_requests')
+        .where('customer_phone', '==', userPhone)
+        .orderBy('created_at', 'desc')
+        .get();
+
+      const requests = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        requests.push({
+          id: doc.id,
+          ...data,
+          created_at: data.created_at?.toDate?.() || data.created_at,
+          updated_at: data.updated_at?.toDate?.() || data.updated_at,
+          status_updated_at: data.status_updated_at?.toDate?.() || data.status_updated_at
+        });
+      });
+
+      // Group by status for summary
+      const statusSummary = requests.reduce((acc, request) => {
+        acc[request.status] = (acc[request.status] || 0) + 1;
+        return acc;
+      }, {});
+
+      res.json({
+        success: true,
+        data: {
+          requests,
+          total: requests.length,
+          statusSummary
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error fetching customer service requests:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch service requests',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Get service request by ID
+   * GET /api/maintenance/request/:requestId
+   */
+  async getServiceRequestById(req, res) {
     try {
       const { requestId } = req.params;
-      const { status, notes } = req.body;
-      const { userId, role } = req.user; // From auth middleware
+      const userPhone = req.user?.phone;
 
-      if (!status) {
+      if (!requestId) {
         return res.status(400).json({
           success: false,
-          message: 'Status is required'
+          message: 'Request ID is required'
         });
       }
 
-      // Only allow admin or user who owns the request to update status
-      const userIdToCheck = role === 'admin' ? null : userId;
+      // Get service request document
+      const doc = await firebaseConfig.db
+        .collection('service_requests')
+        .doc(requestId)
+        .get();
 
-      const result = await this.maintenanceService.updateRequestStatus(
-        requestId, 
-        status, 
-        notes || '', 
-        userIdToCheck
-      );
-
-      res.status(200).json({
-        success: true,
-        message: result.message,
-        data: {
-          request: result.request
-        }
-      });
-    } catch (error) {
-      console.error('Error in updateRequestStatus controller:', error);
-      
-      if (error.message.includes('Invalid status') || error.message.includes('not found')) {
-        return res.status(400).json({
-          success: false,
-          message: error.message
-        });
-      }
-
-      if (error.message.includes('Unauthorized')) {
-        return res.status(403).json({
-          success: false,
-          message: error.message
-        });
-      }
-
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update request status'
-      });
-    }
-  }
-
-  async deleteMaintenanceRequest(req, res) {
-    try {
-      const { requestId } = req.params;
-      const { userId, role } = req.user; // From auth middleware
-
-      // Only allow admin or user who owns the request to delete
-      const userIdToCheck = role === 'admin' ? null : userId;
-
-      const result = await this.maintenanceService.deleteMaintenanceRequest(requestId, userIdToCheck);
-
-      res.status(200).json({
-        success: true,
-        message: result.message
-      });
-    } catch (error) {
-      console.error('Error in deleteMaintenanceRequest controller:', error);
-      
-      if (error.message.includes('not found')) {
+      if (!doc.exists) {
         return res.status(404).json({
           success: false,
-          message: error.message
+          message: 'Service request not found'
         });
       }
 
-      if (error.message.includes('Unauthorized') || error.message.includes('Cannot delete')) {
+      const data = doc.data();
+
+      // Verify the request belongs to the user
+      if (data.customer_phone !== userPhone) {
         return res.status(403).json({
           success: false,
-          message: error.message
+          message: 'Access denied'
         });
       }
 
-      res.status(500).json({
-        success: false,
-        message: 'Failed to delete maintenance request'
-      });
-    }
-  }
-
-  // Admin-only endpoints
-  async getAllMaintenanceRequests(req, res) {
-    try {
-      const { role } = req.user; // From auth middleware
-      
-      if (role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. Admin privileges required.'
-        });
-      }
-
-      const filters = {
-        userId: req.query.userId,
-        leadId: req.query.leadId,
-        status: req.query.status,
-        priority: req.query.priority,
-        assignedTeam: req.query.assignedTeam,
-        dateFrom: req.query.dateFrom,
-        dateTo: req.query.dateTo
+      const request = {
+        id: doc.id,
+        ...data,
+        created_at: data.created_at?.toDate?.() || data.created_at,
+        updated_at: data.updated_at?.toDate?.() || data.updated_at,
+        status_updated_at: data.status_updated_at?.toDate?.() || data.status_updated_at
       };
 
-      const pagination = {
-        limit: req.query.limit ? parseInt(req.query.limit) : 50
-      };
-
-      // Remove undefined values from filters
-      Object.keys(filters).forEach(key => {
-        if (filters[key] === undefined) delete filters[key];
-      });
-
-      const result = await this.maintenanceService.getAllMaintenanceRequests(filters, pagination);
-
-      res.status(200).json({
+      res.json({
         success: true,
-        data: result
+        data: { request }
       });
+
     } catch (error) {
-      console.error('Error in getAllMaintenanceRequests controller:', error);
+      console.error('❌ Error fetching service request:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to retrieve maintenance requests'
+        message: 'Failed to fetch service request',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }
 
-  async getMaintenanceRequestsByStatus(req, res) {
+  /**
+   * Update service request status (Admin/Technician only)
+   * PATCH /api/maintenance/request/:requestId/status
+   */
+  async updateServiceRequestStatus(req, res) {
     try {
-      const { role } = req.user; // From auth middleware
-      
-      if (role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. Admin privileges required.'
-        });
-      }
+      const { requestId } = req.params;
+      const { status, notes = '', technician_id = null } = req.body;
 
-      const { status } = req.params;
-      const validStatuses = ['pending', 'assigned', 'in-progress', 'completed', 'cancelled'];
-      
+      // Validate status
+      const validStatuses = ['pending', 'assigned', 'in_progress', 'completed', 'cancelled'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid status. Valid statuses are: ' + validStatuses.join(', ')
+          message: 'Invalid status'
         });
       }
 
-      const result = await this.maintenanceService.getMaintenanceRequestsByStatus(status);
+      // Check if request exists
+      const requestRef = firebaseConfig.db.collection('service_requests').doc(requestId);
+      const doc = await requestRef.get();
 
-      res.status(200).json({
-        success: true,
-        data: {
-          requests: result.requests,
-          count: result.count
-        }
-      });
-    } catch (error) {
-      console.error('Error in getMaintenanceRequestsByStatus controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to retrieve maintenance requests by status'
-      });
-    }
-  }
-
-  async assignTeamToRequest(req, res) {
-    try {
-      const { role } = req.user; // From auth middleware
-      
-      if (role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. Admin privileges required.'
-        });
-      }
-
-      const { requestId } = req.params;
-      const { teamId, scheduledDate } = req.body;
-
-      if (!teamId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Team ID is required'
-        });
-      }
-
-      const result = await this.maintenanceService.assignTeamToRequest(
-        requestId, 
-        teamId, 
-        scheduledDate
-      );
-
-      res.status(200).json({
-        success: true,
-        message: result.message,
-        data: {
-          request: result.request
-        }
-      });
-    } catch (error) {
-      console.error('Error in assignTeamToRequest controller:', error);
-      
-      if (error.message.includes('not found')) {
+      if (!doc.exists) {
         return res.status(404).json({
           success: false,
-          message: error.message
+          message: 'Service request not found'
         });
       }
 
-      res.status(500).json({
-        success: false,
-        message: 'Failed to assign team to request'
-      });
-    }
-  }
-
-  async getMaintenanceStatistics(req, res) {
-    try {
-      const { role } = req.user; // From auth middleware
-      
-      if (role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. Admin privileges required.'
-        });
-      }
-
-      const result = await this.maintenanceService.getMaintenanceStatistics();
-
-      res.status(200).json({
-        success: true,
-        data: result.statistics
-      });
-    } catch (error) {
-      console.error('Error in getMaintenanceStatistics controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to retrieve maintenance statistics'
-      });
-    }
-  }
-
-  async getPendingRequests(req, res) {
-    try {
-      const { role } = req.user; // From auth middleware
-      
-      if (role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. Admin privileges required.'
-        });
-      }
-
-      const result = await this.maintenanceService.getPendingRequests();
-
-      res.status(200).json({
-        success: true,
-        data: {
-          requests: result.requests,
-          count: result.count
-        }
-      });
-    } catch (error) {
-      console.error('Error in getPendingRequests controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to retrieve pending requests'
-      });
-    }
-  }
-
-  async getOverdueRequests(req, res) {
-    try {
-      const { role } = req.user; // From auth middleware
-      
-      if (role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. Admin privileges required.'
-        });
-      }
-
-      const result = await this.maintenanceService.getOverdueRequests();
-
-      res.status(200).json({
-        success: true,
-        data: {
-          requests: result.requests,
-          count: result.count
-        }
-      });
-    } catch (error) {
-      console.error('Error in getOverdueRequests controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to retrieve overdue requests'
-      });
-    }
-  }
-
-  async generateMaintenanceReport(req, res) {
-    try {
-      const { role } = req.user; // From auth middleware
-      
-      if (role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. Admin privileges required.'
-        });
-      }
-
-      const filters = {
-        dateFrom: req.query.dateFrom,
-        dateTo: req.query.dateTo,
-        status: req.query.status,
-        priority: req.query.priority,
-        assignedTeam: req.query.assignedTeam
+      // Update request
+      const updateData = {
+        status,
+        status_updated_at: firebaseConfig.getServerTimestamp(),
+        updated_at: firebaseConfig.getServerTimestamp()
       };
 
-      // Remove undefined values from filters
-      Object.keys(filters).forEach(key => {
-        if (filters[key] === undefined) delete filters[key];
-      });
+      if (notes) {
+        updateData.notes = notes;
+      }
 
-      const result = await this.maintenanceService.generateMaintenanceReport(filters);
+      if (technician_id) {
+        updateData.technician_id = technician_id;
+      }
 
-      res.status(200).json({
+      await requestRef.update(updateData);
+
+      console.log(`✅ Service request ${requestId} status updated to: ${status}`);
+
+      res.json({
         success: true,
-        data: result.report
+        message: 'Service request status updated successfully',
+        data: {
+          requestId,
+          status,
+          notes
+        }
       });
+
     } catch (error) {
-      console.error('Error in generateMaintenanceReport controller:', error);
+      console.error('❌ Error updating service request status:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to generate maintenance report'
+        message: 'Failed to update service request status',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Cancel service request (Customer only)
+   * PATCH /api/maintenance/request/:requestId/cancel
+   */
+  async cancelServiceRequest(req, res) {
+    try {
+      const { requestId } = req.params;
+      const { reason = '' } = req.body;
+      const userPhone = req.user?.phone;
+
+      // Check if request exists and belongs to user
+      const requestRef = firebaseConfig.db.collection('service_requests').doc(requestId);
+      const doc = await requestRef.get();
+
+      if (!doc.exists) {
+        return res.status(404).json({
+          success: false,
+          message: 'Service request not found'
+        });
+      }
+
+      const data = doc.data();
+      if (data.customer_phone !== userPhone) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied'
+        });
+      }
+
+      // Check if request can be cancelled
+      if (['completed', 'cancelled'].includes(data.status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot cancel request with status: ${data.status}`
+        });
+      }
+
+      // Update request
+      await requestRef.update({
+        status: 'cancelled',
+        cancellation_reason: reason,
+        cancelled_at: firebaseConfig.getServerTimestamp(),
+        status_updated_at: firebaseConfig.getServerTimestamp(),
+        updated_at: firebaseConfig.getServerTimestamp()
+      });
+
+      console.log(`✅ Service request ${requestId} cancelled by customer`);
+
+      res.json({
+        success: true,
+        message: 'Service request cancelled successfully',
+        data: {
+          requestId,
+          status: 'cancelled',
+          reason
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error cancelling service request:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to cancel service request',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Get service request statistics (Admin only)
+   * GET /api/maintenance/stats
+   */
+  async getServiceRequestStats(req, res) {
+    try {
+      // This would typically have admin authentication
+      const snapshot = await firebaseConfig.db
+        .collection('service_requests')
+        .get();
+
+      const stats = {
+        total: 0,
+        byStatus: {},
+        byCategory: {},
+        byUrgency: {},
+        recent: []
+      };
+
+      const requests = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        stats.total++;
+        
+        // By status
+        stats.byStatus[data.status] = (stats.byStatus[data.status] || 0) + 1;
+        
+        // By category
+        stats.byCategory[data.category] = (stats.byCategory[data.category] || 0) + 1;
+        
+        // By urgency
+        stats.byUrgency[data.urgency] = (stats.byUrgency[data.urgency] || 0) + 1;
+        
+        // Add to requests array for recent requests
+        requests.push({
+          id: doc.id,
+          ...data,
+          created_at: data.created_at?.toDate?.() || data.created_at
+        });
+      });
+
+      // Sort by creation date and get recent 10
+      stats.recent = requests
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 10);
+
+      res.json({
+        success: true,
+        data: stats
+      });
+
+    } catch (error) {
+      console.error('❌ Error fetching service request stats:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch service request statistics',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }
 }
 
-export default MaintenanceController;
+export default new MaintenanceController();

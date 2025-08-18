@@ -1,9 +1,5 @@
 // server/src/constants/notificationTemplates.js
 
-/**
- * SMS Notification Templates
- * Templates for different stage notifications
- */
 
 const PROJECT_STAGE_TEMPLATES = {
   "booking_confirmed": "Hi [Customer Name], Your Modula order is confirmed! Access it anytime to track your project: [link to website] – Team Modula",

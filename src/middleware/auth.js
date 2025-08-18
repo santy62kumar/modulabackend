@@ -17,30 +17,3 @@ export const authMiddleware = (req, res, next) => {
   }
 };
 
-// server/middleware/auth.js
-// import jwt from 'jsonwebtoken';
-
-// export const authMiddleware = (req, res, next) => {
-//   try {
-//     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
-//     if (!token) {
-//       return res.status(401).json({ message: 'Access denied. No token provided.' });
-//     }
-
-//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-//     // ✅ Add guard for required fields
-//     if (!decoded.userId || !decoded.leadId) {
-//       return res.status(400).json({ 
-//         success: false, 
-//         message: 'Missing userId or leadId in token.' 
-//       });
-//     }
-
-//     req.user = decoded;
-//     next();
-//   } catch (error) {
-//     res.status(401).json({ message: 'Invalid token.' });
-//   }
-// };

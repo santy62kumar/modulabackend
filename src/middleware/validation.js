@@ -1,11 +1,69 @@
-// server/src/middleware/validation.js
+// server/src/middleware/validation.js - Updated with correct maintenance validator imports
 import { validateFeedbackSubmission } from '../validators/feedbackValidator.js';
-import { validateMaintenanceRequest } from '../validators/maintenanceValidator.js';
 
 const validationSchemas = {
   feedback: (data) => validateFeedbackSubmission(data),
   
-  maintenanceRequest: (data) => validateMaintenanceRequest(data),
+  // Updated maintenance request validation using our own logic
+  maintenanceRequest: (data) => {
+    const errors = [];
+    
+    // Validate required fields
+    if (!data.projectId) {
+      errors.push({ field: 'projectId', message: 'Project ID is required' });
+    }
+    
+    if (!data.category) {
+      errors.push({ field: 'category', message: 'Category is required' });
+    } else if (!['services', 'upgrade', 'support'].includes(data.category)) {
+      errors.push({ field: 'category', message: 'Category must be one of: services, upgrade, support' });
+    }
+    
+    if (!data.serviceId) {
+      errors.push({ field: 'serviceId', message: 'Service ID is required' });
+    }
+    
+    if (!data.serviceName) {
+      errors.push({ field: 'serviceName', message: 'Service name is required' });
+    } else if (data.serviceName.length < 3 || data.serviceName.length > 100) {
+      errors.push({ field: 'serviceName', message: 'Service name must be between 3 and 100 characters' });
+    }
+    
+    if (!data.description) {
+      errors.push({ field: 'description', message: 'Description is required' });
+    } else if (data.description.length < 10 || data.description.length > 1000) {
+      errors.push({ field: 'description', message: 'Description must be between 10 and 1000 characters' });
+    }
+    
+    if (!data.contactName) {
+      errors.push({ field: 'contactName', message: 'Contact name is required' });
+    } else if (data.contactName.length < 2 || data.contactName.length > 50) {
+      errors.push({ field: 'contactName', message: 'Contact name must be between 2 and 50 characters' });
+    }
+    
+    if (!data.contactPhone) {
+      errors.push({ field: 'contactPhone', message: 'Contact phone is required' });
+    }
+    
+    // Validate optional fields
+    if (data.preferredDate) {
+      const preferredDate = new Date(data.preferredDate);
+      if (isNaN(preferredDate.getTime())) {
+        errors.push({ field: 'preferredDate', message: 'Invalid preferred date format' });
+      } else if (preferredDate < new Date()) {
+        errors.push({ field: 'preferredDate', message: 'Preferred date cannot be in the past' });
+      }
+    }
+    
+    if (data.urgency && !['low', 'normal', 'high', 'urgent'].includes(data.urgency)) {
+      errors.push({ field: 'urgency', message: 'Urgency must be one of: low, normal, high, urgent' });
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  },
   
   feedbackStatusUpdate: (data) => {
     const errors = [];
@@ -35,7 +93,7 @@ const validationSchemas = {
     
     if (!data.status) {
       errors.push({ field: 'status', message: 'Status is required' });
-    } else if (!['pending', 'assigned', 'in-progress', 'completed', 'cancelled'].includes(data.status)) {
+    } else if (!['pending', 'assigned', 'in_progress', 'completed', 'cancelled'].includes(data.status)) {
       errors.push({ field: 'status', message: 'Invalid status value' });
     }
     
@@ -43,8 +101,12 @@ const validationSchemas = {
       errors.push({ field: 'notes', message: 'Notes must be a string' });
     }
     
-    if (data.notes && data.notes.length > 1000) {
-      errors.push({ field: 'notes', message: 'Notes too long (maximum 1000 characters)' });
+    if (data.notes && data.notes.length > 500) {
+      errors.push({ field: 'notes', message: 'Notes too long (maximum 500 characters)' });
+    }
+    
+    if (data.technician_id && typeof data.technician_id !== 'string') {
+      errors.push({ field: 'technician_id', message: 'Technician ID must be a string' });
     }
     
     return {
@@ -391,29 +453,51 @@ export const validateFeedbackRequest = [
   validateRequest('feedback')
 ];
 
-// Combined validation middleware for maintenance requests
+// Updated combined validation middleware for maintenance requests
 export const validateMaintenanceRequestMiddleware = [
   sanitizeRequestBody,
   requireFields([
-    'customerName',
-    'projectName', 
-    'contactNumber',
-    'requestDate',
-    'services'
+    'projectId',
+    'category',
+    'serviceId',
+    'serviceName',
+    'description',
+    'contactName',
+    'contactPhone'
   ]),
   validateTypes({
-    customerName: 'string',
-    projectName: 'string',
-    contactNumber: 'string',
-    requestDate: 'date',
-    services: 'object'
+    projectId: 'string',
+    category: 'string',
+    serviceId: 'string',
+    serviceName: 'string',
+    description: 'string',
+    contactName: 'string',
+    contactPhone: 'string',
+    preferredDate: 'string',
+    urgency: 'string'
   }),
   validateStringLengths({
-    customerName: { min: 2, max: 100 },
-    projectName: { min: 2, max: 100 }
+    serviceName: { min: 3, max: 100 },
+    description: { min: 10, max: 1000 },
+    contactName: { min: 2, max: 50 }
   }),
-  validatePhoneNumber('contactNumber'),
+  validatePhoneNumber('contactPhone'),
   validateRequest('maintenanceRequest')
+];
+
+// New validation middleware for maintenance status updates
+export const validateMaintenanceStatusUpdateMiddleware = [
+  sanitizeRequestBody,
+  requireFields(['status']),
+  validateTypes({
+    status: 'string',
+    notes: 'string',
+    technician_id: 'string'
+  }),
+  validateStringLengths({
+    notes: { max: 500 }
+  }),
+  validateRequest('maintenanceStatusUpdate')
 ];
 
 export default {
@@ -425,5 +509,6 @@ export default {
   validatePhoneNumber,
   validateRatings,
   validateFeedbackRequest,
-  validateMaintenanceRequestMiddleware
+  validateMaintenanceRequestMiddleware,
+  validateMaintenanceStatusUpdateMiddleware
 };

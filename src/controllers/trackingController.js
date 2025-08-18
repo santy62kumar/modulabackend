@@ -88,6 +88,8 @@ class TrackingController {
    * @param {Request} req - Express request
    * @param {Response} res - Express response
    */
+
+
   async getCustomerProject(req, res) {
     try {
       const { phone } = req.user; // From JWT token
@@ -134,7 +136,7 @@ class TrackingController {
       });
     }
   }
-
+  
   /**
    * Get tracking statistics (Admin only)
    * @param {Request} req - Express request

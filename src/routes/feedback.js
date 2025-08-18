@@ -73,7 +73,7 @@
 
 // export default router;
 
-// server/src/routes/feedback.js - ENHANCED VERSION
+// server/src/routes/feedback.js 
 import express from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import FeedbackController from '../controllers/feedbackController.js';
@@ -119,11 +119,5 @@ router.get('/reference/:referenceId', authMiddleware, feedbackController.getFeed
 // ✅ NEW: Internal route for cron job to mark users eligible
 router.post('/internal/mark-eligible', feedbackController.markUserEligibleForFeedback.bind(feedbackController));
 
-// Future admin routes (commented out for now)
-// router.get('/admin/all', authMiddleware, feedbackController.getAllFeedbacks.bind(feedbackController));
-// router.get('/admin/statistics', authMiddleware, feedbackController.getFeedbackStatistics.bind(feedbackController));
-// router.get('/admin/trends', authMiddleware, feedbackController.getFeedbackTrends.bind(feedbackController));
-// router.get('/admin/report', authMiddleware, feedbackController.generateFeedbackReport.bind(feedbackController));
-// router.patch('/admin/:feedbackId/status', authMiddleware, feedbackController.updateFeedbackStatus.bind(feedbackController));
 
 export default router;

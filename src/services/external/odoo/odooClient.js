@@ -264,6 +264,58 @@ class OdooClient {
     }
   }
 
+  async fetchLeadById(leadId) {
+    try {
+      // Ensure authentication
+      if (!this.uid) {
+        await this.authenticate();
+        if (!this.uid) {
+          throw new Error('Failed to authenticate with Odoo');
+        }
+      }
+
+      console.log(`🔍 Fetching lead by ID: ${leadId}`);
+      
+      const leads = await this.modelsExecute('execute_kw', [
+        this.db,
+        this.uid,
+        this.password,
+        'crm.lead',
+        'search_read',
+        [
+          [['id', '=', parseInt(leadId)]]
+        ],
+        {
+          fields: [
+            'id', 
+            'name', 
+            'phone', 
+            'email_from', 
+            'stage_id',
+            // Contact POC fields from PDF
+            'x_studio_sales_poc_1',           // Sales POC name
+            'x_studio_sales_poc_mob_no_1',    // Sales POC mobile
+            'x_studio_installation_poc_no_1', // Installation POC number
+            'x_studio_supervisor_1'           // Supervisor name
+          ]
+        }
+      ]);
+
+      if (leads.length === 0) {
+        console.log(`⚠️ No lead found with ID: ${leadId}`);
+        return null;
+      }
+
+      const lead = leads[0];
+      console.log(`✅ Fetched lead ${leadId}:`, lead.name);
+      return lead;
+      
+    } catch (error) {
+      console.error('❌ Error fetching lead by ID:', error.message);
+      throw error;
+    }
+  }
+
   /**
    * Fetch specific lead by phone number
    * @param {string} phoneNumber - Phone number to search

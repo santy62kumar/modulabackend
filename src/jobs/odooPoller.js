@@ -7,7 +7,7 @@ import trackingService from '../services/business/trackingService.js';
 /**
  * Odoo Poller Cron Job
  * Runs every 5 minutes to check for stage changes in Odoo CRM
- */
+*/
 
 class OdooPoller {
   constructor() {
@@ -26,10 +26,10 @@ class OdooPoller {
    * Start the cron job
    */
   start() {
-    console.log('🚀 Starting Odoo Poller Cron Job (every 5 minutes)');
-    
-    // Run every 5 minutes: 0 */5 * * * *
-    this.cronJob = cron.schedule('*/2 * * * *', async () => {
+    console.log('🚀 Starting Odoo Poller Cron Job (every 25 minutes)');
+
+    // Run every 25 minutes: 0 */25 * * * *
+    this.cronJob = cron.schedule('*/25 * * * *', async () => {
       await this.executePoll();
     }, {
       scheduled: true,
