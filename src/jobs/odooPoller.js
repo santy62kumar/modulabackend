@@ -25,11 +25,24 @@ class OdooPoller {
   /**
    * Start the cron job
    */
-  start() {
-    console.log('🚀 Starting Odoo Poller Cron Job (every 25 minutes)');
+  // start() {
+  //   console.log('🚀 Starting Odoo Poller Cron Job (every 25 minutes)');
 
-    // Run every 25 minutes: 0 */25 * * * *
-    this.cronJob = cron.schedule('*/25 * * * *', async () => {
+  //   // Run every 25 minutes: 0 */25 * * * *
+  //   this.cronJob = cron.schedule('*/25 * * * *', async () => {
+  //     await this.executePoll();
+  //   }, {
+  //     scheduled: true,
+  //     timezone: "Asia/Kolkata"
+  //   });
+
+  //   console.log('✅ Odoo Poller Cron Job started successfully');
+  // }
+  start() {
+    console.log('🚀 Starting Odoo Poller Cron Job (every 5 hours)');
+
+    // Run every 5 hours: 0 */5 * * *
+    this.cronJob = cron.schedule('0 */5 * * *', async () => {
       await this.executePoll();
     }, {
       scheduled: true,
@@ -37,7 +50,8 @@ class OdooPoller {
     });
 
     console.log('✅ Odoo Poller Cron Job started successfully');
-  }
+}
+
 
   /**
    * Stop the cron job
