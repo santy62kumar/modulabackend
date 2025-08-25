@@ -76,11 +76,7 @@ async function main() {
     
     console.log('═'.repeat(50));
     console.log('🎉 System ready for operation!');
-    console.log('📊 Features enabled:');
-    console.log('   ✅ Customer Authentication (Week 1)');
-    console.log('   ✅ Project Dashboard (Week 2)');
-    console.log('   ✅ Automated Stage Tracking (Week 3)');
-    console.log('   ✅ SMS Notifications (Week 3)');
+   
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
